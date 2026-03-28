@@ -149,17 +149,19 @@ export default class AirfoilSim extends SimulationEngine {
     // Distance from chord, scaled
     const r2 = fx * fx + fy * fy;
     if (r2 > 0.01) {
-      // Doublet strength proportional to thickness
-      const mu = this.thickness / 100 * 0.4;
+      // Doublet strength scales with thickness squared (cross-section area effect)
+      const tRatio = this.thickness / 100;
+      const mu = tRatio * tRatio * 4.0 + tRatio * 0.8;
       // Camber/lift: add circulation (Γ) via thin airfoil theory
       const CL2 = this.CL;
       const gamma = 0.5 * CL2 * V;
 
-      // Doublet perturbation (x-direction dipole)
-      const pertVx = mu * (fx * fx - fy * fy) / (r2 * r2);
-      const pertVy = mu * (2 * fx * fy) / (r2 * r2);
+      // Doublet perturbation — models the airfoil displacing flow
+      const r4 = r2 * r2;
+      const pertVx = mu * (fx * fx - fy * fy) / r4;
+      const pertVy = mu * (2 * fx * fy) / r4;
 
-      // Vortex (circulation) perturbation
+      // Vortex (circulation) perturbation — creates lift asymmetry
       const circVx = -gamma * fy / r2;
       const circVy = gamma * fx / r2;
 

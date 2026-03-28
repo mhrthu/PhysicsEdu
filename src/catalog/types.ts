@@ -16,6 +16,9 @@ export enum PhysicsDomain {
   Astrophysics = 'Astrophysics',
   Optics = 'Optics',
   FluidAero = 'Fluid & Aero',
+  Relativity = 'Relativity',
+  Acoustics = 'Acoustics',
+  SolidState = 'Solid State',
 }
 
 export interface SimulationMeta {
@@ -46,6 +49,9 @@ export const DOMAIN_COLORS: Record<PhysicsDomain, string> = {
   [PhysicsDomain.Astrophysics]: '#06b6d4',
   [PhysicsDomain.Optics]: '#84cc16',
   [PhysicsDomain.FluidAero]: '#14b8a6',
+  [PhysicsDomain.Relativity]: '#f472b6',
+  [PhysicsDomain.Acoustics]: '#fb923c',
+  [PhysicsDomain.SolidState]: '#38bdf8',
 };
 
 export const DOMAIN_ICONS: Record<PhysicsDomain, string> = {
@@ -56,4 +62,7 @@ export const DOMAIN_ICONS: Record<PhysicsDomain, string> = {
   [PhysicsDomain.Astrophysics]: '🌌',
   [PhysicsDomain.Optics]: '🔬',
   [PhysicsDomain.FluidAero]: '🌊',
+  [PhysicsDomain.Relativity]: '🚀',
+  [PhysicsDomain.Acoustics]: '🔊',
+  [PhysicsDomain.SolidState]: '💎',
 };

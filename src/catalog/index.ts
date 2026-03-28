@@ -47,3 +47,18 @@ import '@/simulations/fluid-aero/navier-stokes/index.ts';
 import '@/simulations/fluid-aero/bernoulli-pipe/index.ts';
 import '@/simulations/fluid-aero/airfoil/index.ts';
 import '@/simulations/fluid-aero/karman-vortex/index.ts';
+
+// Relativity
+import '@/simulations/relativity/time-dilation/index.ts';
+import '@/simulations/relativity/lorentz-contraction/index.ts';
+import '@/simulations/relativity/spacetime-fabric/index.ts';
+
+// Acoustics
+import '@/simulations/acoustics/doppler-effect/index.ts';
+import '@/simulations/acoustics/chladni-figures/index.ts';
+import '@/simulations/acoustics/fourier-series/index.ts';
+
+// Solid State
+import '@/simulations/solid-state/crystal-lattices/index.ts';
+import '@/simulations/solid-state/semiconductors/index.ts';
+import '@/simulations/solid-state/superconductivity/index.ts';
