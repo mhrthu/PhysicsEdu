@@ -170,13 +170,15 @@ export default class InclinedPlaneSim extends SimulationEngine {
 
     // Status text
     const gPar = this.gravity * Math.sin(angleRad);
-    const fFric = this.friction * this.mass * this.gravity * Math.cos(angleRad);
-    const fNet = this.mass * gPar - fFric;
+    const fGravPar = this.mass * gPar;
+    const fFricKinetic = this.friction * this.mass * this.gravity * Math.cos(angleRad);
+    const fFricDisplay = this.sliding ? fFricKinetic : Math.min(fFricKinetic, fGravPar);
+    const fNet = fGravPar - fFricKinetic;
 
-    drawText(ctx, `F\u2091 = mg sin\u03b8 = ${(this.mass * gPar).toFixed(1)} N`, 16, height - 80, '#ef4444', '13px system-ui');
+    drawText(ctx, `F\u2091 = mg sin\u03b8 = ${fGravPar.toFixed(1)} N`, 16, height - 80, '#ef4444', '13px system-ui');
     drawText(ctx, `F\u2099 = mg cos\u03b8 = ${(this.mass * this.gravity * Math.cos(angleRad)).toFixed(1)} N`, 16, height - 58, '#3b82f6', '13px system-ui');
-    drawText(ctx, `f = \u03bcN = ${fFric.toFixed(1)} N`, 16, height - 36, '#a855f7', '13px system-ui');
-    drawText(ctx, this.sliding ? `Sliding! Net = ${fNet.toFixed(1)} N` : `Static: friction sufficient`, 16, height - 14, this.sliding ? '#fbbf24' : '#22c55e', '13px system-ui');
+    drawText(ctx, `f = ${this.sliding ? '\u03bcN' : 'min(\u03bcN, mg sin\u03b8)'} = ${fFricDisplay.toFixed(1)} N`, 16, height - 36, '#a855f7', '13px system-ui');
+    drawText(ctx, this.sliding ? `Sliding! Net = ${fNet.toFixed(1)} N` : `Static: friction balances gravity`, 16, height - 14, this.sliding ? '#fbbf24' : '#22c55e', '13px system-ui');
   }
 
   private renderForces(bx: number, by: number, angleRad: number, blockSize: number): void {
@@ -200,11 +202,13 @@ export default class InclinedPlaneSim extends SimulationEngine {
     drawArrow(ctx, cx, cy, cx + nx * nLen, cy + ny * nLen, '#3b82f6', 2.5, 8);
     drawText(ctx, 'N', cx + nx * nLen + 8, cy + ny * nLen, '#3b82f6', '11px system-ui');
 
-    // Friction (along ramp, opposing motion = up the ramp)
-    const fFric = friction * N;
+    // Friction: kinetic = μN always; static ≤ driving force (balances gravity)
+    const fGravParallel = mass * gravity * Math.sin(angleRad);
+    const fFricKinetic = friction * N;
+    const fFric = this.sliding ? fFricKinetic : Math.min(fFricKinetic, fGravParallel);
     const fLen = fFric * fScale;
-    const fx = -Math.cos(angleRad);
-    const fy = Math.sin(angleRad);
+    const fx = Math.cos(angleRad);
+    const fy = -Math.sin(angleRad);
     if (fFric > 0.01) {
       drawArrow(ctx, cx, cy, cx + fx * fLen, cy + fy * fLen, '#a855f7', 2.5, 8);
       drawText(ctx, 'f', cx + fx * fLen + 8, cy + fy * fLen, '#a855f7', '11px system-ui');
