@@ -6,20 +6,34 @@ interface Atom3D {
   x: number;
   y: number;
   z: number;
+  species: number; // 0 = primary, 1 = secondary, 2 = tertiary
 }
+
+// Colors and size multipliers per species
+const SPECIES_COLORS: Array<{ h: number; s: number; l: number; sizeScale: number; label: string }> = [
+  { h: 210, s: 80, l: 65, sizeScale: 1.0, label: 'A' },  // blue (cation / primary)
+  { h: 15,  s: 85, l: 60, sizeScale: 0.7, label: 'B' },   // orange-red (anion / secondary)
+  { h: 130, s: 70, l: 55, sizeScale: 0.65, label: 'O' },  // green (oxygen / tertiary)
+];
 
 interface Bond {
   a: number;
   b: number;
 }
 
-type LatticeType = 'SC' | 'BCC' | 'FCC' | 'Diamond';
+type LatticeType = 'SC' | 'BCC' | 'FCC' | 'Diamond' | 'HCP' | 'NaCl' | 'CsCl' | 'Fluorite' | 'Perovskite' | 'Graphite';
 
-const LATTICE_INFO: Record<LatticeType, { coordination: number; atomsPerCell: number; packing: number }> = {
-  SC:      { coordination: 6,  atomsPerCell: 1,  packing: 0.5236 },
-  BCC:     { coordination: 8,  atomsPerCell: 2,  packing: 0.6802 },
-  FCC:     { coordination: 12, atomsPerCell: 4,  packing: 0.7405 },
-  Diamond: { coordination: 4,  atomsPerCell: 8,  packing: 0.3401 },
+const LATTICE_INFO: Record<LatticeType, { coordination: number; atomsPerCell: number; packing: number; name: string }> = {
+  SC:         { coordination: 6,  atomsPerCell: 1,  packing: 0.5236, name: 'Simple Cubic' },
+  BCC:        { coordination: 8,  atomsPerCell: 2,  packing: 0.6802, name: 'Body-Centered Cubic' },
+  FCC:        { coordination: 12, atomsPerCell: 4,  packing: 0.7405, name: 'Face-Centered Cubic' },
+  Diamond:    { coordination: 4,  atomsPerCell: 8,  packing: 0.3401, name: 'Diamond Cubic' },
+  HCP:        { coordination: 12, atomsPerCell: 6,  packing: 0.7405, name: 'Hexagonal Close-Packed' },
+  NaCl:       { coordination: 6,  atomsPerCell: 8,  packing: 0.6700, name: 'Rock Salt (NaCl)' },
+  CsCl:       { coordination: 8,  atomsPerCell: 2,  packing: 0.7290, name: 'Cesium Chloride' },
+  Fluorite:   { coordination: 4,  atomsPerCell: 12, packing: 0.6340, name: 'Fluorite (CaF₂)' },
+  Perovskite: { coordination: 6,  atomsPerCell: 5,  packing: 0.5200, name: 'Perovskite (ABO₃)' },
+  Graphite:   { coordination: 3,  atomsPerCell: 4,  packing: 0.1700, name: 'Graphite (Layered)' },
 };
 
 export default class CrystalLatticesSim extends SimulationEngine {
@@ -52,30 +66,112 @@ export default class CrystalLatticesSim extends SimulationEngine {
     for (let ix = 0; ix <= n; ix++) {
       for (let iy = 0; iy <= n; iy++) {
         for (let iz = 0; iz <= n; iz++) {
-          // Corner atoms (all lattice types)
-          positions.push({ x: ix, y: iy, z: iz });
+          // Corner atoms — skip for NaCl (handled separately with full half-integer grid)
+          if (this.latticeType !== 'NaCl') {
+            positions.push({ x: ix, y: iy, z: iz, species: 0 });
+          }
 
           if (this.latticeType === 'BCC' && ix < n && iy < n && iz < n) {
-            positions.push({ x: ix + 0.5, y: iy + 0.5, z: iz + 0.5 });
+            positions.push({ x: ix + 0.5, y: iy + 0.5, z: iz + 0.5, species: 0 });
           }
 
           if (this.latticeType === 'FCC' && ix < n && iy < n && iz < n) {
-            positions.push({ x: ix + 0.5, y: iy + 0.5, z: iz });
-            positions.push({ x: ix + 0.5, y: iy, z: iz + 0.5 });
-            positions.push({ x: ix, y: iy + 0.5, z: iz + 0.5 });
+            positions.push({ x: ix + 0.5, y: iy + 0.5, z: iz, species: 0 });
+            positions.push({ x: ix + 0.5, y: iy, z: iz + 0.5, species: 0 });
+            positions.push({ x: ix, y: iy + 0.5, z: iz + 0.5, species: 0 });
           }
 
           if (this.latticeType === 'Diamond' && ix < n && iy < n && iz < n) {
-            // FCC basis
-            positions.push({ x: ix + 0.5, y: iy + 0.5, z: iz });
-            positions.push({ x: ix + 0.5, y: iy, z: iz + 0.5 });
-            positions.push({ x: ix, y: iy + 0.5, z: iz + 0.5 });
-            // Tetrahedral interstitials
-            positions.push({ x: ix + 0.25, y: iy + 0.25, z: iz + 0.25 });
-            positions.push({ x: ix + 0.75, y: iy + 0.75, z: iz + 0.25 });
-            positions.push({ x: ix + 0.75, y: iy + 0.25, z: iz + 0.75 });
-            positions.push({ x: ix + 0.25, y: iy + 0.75, z: iz + 0.75 });
+            positions.push({ x: ix + 0.5, y: iy + 0.5, z: iz, species: 0 });
+            positions.push({ x: ix + 0.5, y: iy, z: iz + 0.5, species: 0 });
+            positions.push({ x: ix, y: iy + 0.5, z: iz + 0.5, species: 0 });
+            positions.push({ x: ix + 0.25, y: iy + 0.25, z: iz + 0.25, species: 0 });
+            positions.push({ x: ix + 0.75, y: iy + 0.75, z: iz + 0.25, species: 0 });
+            positions.push({ x: ix + 0.75, y: iy + 0.25, z: iz + 0.75, species: 0 });
+            positions.push({ x: ix + 0.25, y: iy + 0.75, z: iz + 0.75, species: 0 });
           }
+
+          // NaCl: generate all 8 atoms per unit cell on half-integer grid
+          // species = (2x + 2y + 2z) % 2 — guarantees exact 1:1 ratio
+          if (this.latticeType === 'NaCl' && ix < n && iy < n && iz < n) {
+            for (let dx = 0; dx <= 1; dx++) {
+              for (let dy = 0; dy <= 1; dy++) {
+                for (let dz = 0; dz <= 1; dz++) {
+                  const px = ix + dx * 0.5;
+                  const py = iy + dy * 0.5;
+                  const pz = iz + dz * 0.5;
+                  positions.push({ x: px, y: py, z: pz, species: (dx + dy + dz) % 2 });
+                }
+              }
+            }
+          }
+
+          // CsCl: Cs at corners (species 0, big), Cl at body center (species 1, small)
+          if (this.latticeType === 'CsCl' && ix < n && iy < n && iz < n) {
+            positions.push({ x: ix + 0.5, y: iy + 0.5, z: iz + 0.5, species: 1 });
+          }
+
+          // Fluorite: Ca at FCC sites (species 0, big), F at tetrahedral sites (species 1, small)
+          if (this.latticeType === 'Fluorite' && ix < n && iy < n && iz < n) {
+            positions.push({ x: ix + 0.5, y: iy + 0.5, z: iz, species: 0 });
+            positions.push({ x: ix + 0.5, y: iy, z: iz + 0.5, species: 0 });
+            positions.push({ x: ix, y: iy + 0.5, z: iz + 0.5, species: 0 });
+            positions.push({ x: ix + 0.25, y: iy + 0.25, z: iz + 0.25, species: 1 });
+            positions.push({ x: ix + 0.75, y: iy + 0.75, z: iz + 0.25, species: 1 });
+            positions.push({ x: ix + 0.75, y: iy + 0.25, z: iz + 0.75, species: 1 });
+            positions.push({ x: ix + 0.25, y: iy + 0.75, z: iz + 0.75, species: 1 });
+            positions.push({ x: ix + 0.25, y: iy + 0.75, z: iz + 0.25, species: 1 });
+            positions.push({ x: ix + 0.75, y: iy + 0.25, z: iz + 0.25, species: 1 });
+            positions.push({ x: ix + 0.25, y: iy + 0.25, z: iz + 0.75, species: 1 });
+            positions.push({ x: ix + 0.75, y: iy + 0.75, z: iz + 0.75, species: 1 });
+          }
+
+          // Perovskite: A at corners (0, big), B at body center (1, medium), O at face centers (2, small green)
+          if (this.latticeType === 'Perovskite' && ix < n && iy < n && iz < n) {
+            positions.push({ x: ix + 0.5, y: iy + 0.5, z: iz + 0.5, species: 1 });
+            positions.push({ x: ix + 0.5, y: iy + 0.5, z: iz, species: 2 });
+            positions.push({ x: ix + 0.5, y: iy, z: iz + 0.5, species: 2 });
+            positions.push({ x: ix, y: iy + 0.5, z: iz + 0.5, species: 2 });
+          }
+
+          // HCP
+          if (this.latticeType === 'HCP' && ix < n && iy < n && iz < n) {
+            positions.push({ x: ix + 0.5, y: iy + 1/3, z: iz + 0.5, species: 0 });
+            positions.push({ x: ix, y: iy + 2/3, z: iz + 0.5, species: 0 });
+          }
+
+          // Graphite: skip here — built separately below with hex coordinates
+
+        }
+      }
+    }
+
+    // Graphite: build hexagonal honeycomb with AB stacking (all carbon = species 0)
+    if (this.latticeType === 'Graphite') {
+      // Remove any corner atoms added by the main loop
+      positions.length = 0;
+      const sqrt3 = Math.sqrt(3);
+      // Hex lattice vectors: a1 = (1, 0), a2 = (0.5, √3/2)
+      const a1x = 1, a1y = 0;
+      const a2x = 0.5, a2y = sqrt3 / 2;
+      // Sublattice offset: (a1 + a2) / 3
+      const offX = (a1x + a2x) / 3;
+      const offY = (a1y + a2y) / 3;
+      const layerZ = 1.2; // large interlayer spacing (graphite c/a ≈ 2.7)
+
+      for (let i = -1; i <= n; i++) {
+        for (let j = -1; j <= n; j++) {
+          const bx = i * a1x + j * a2x;
+          const by = i * a1y + j * a2y;
+
+          // Layer A (z = 0): two sublattice atoms per cell
+          positions.push({ x: bx, y: by, z: 0, species: 0 });
+          positions.push({ x: bx + offX, y: by + offY, z: 0, species: 0 });
+
+          // Layer B (z = layerZ): shifted by (a1 + a2)/3 relative to A
+          // In AB stacking, B-layer atoms sit above centers of A-layer hexagons
+          positions.push({ x: bx + offX, y: by + offY, z: layerZ, species: 0 });
+          positions.push({ x: bx + 2 * offX, y: by + 2 * offY, z: layerZ, species: 0 });
         }
       }
     }
@@ -84,7 +180,7 @@ export default class CrystalLatticesSim extends SimulationEngine {
     const cx = n / 2;
     const cy = n / 2;
     const cz = n / 2;
-    this.atoms = positions.map(p => ({ x: p.x - cx, y: p.y - cy, z: p.z - cz }));
+    this.atoms = positions.map(p => ({ x: p.x - cx, y: p.y - cy, z: p.z - cz, species: p.species }));
 
     // Build bonds between nearest neighbors
     const bondDist = this.getBondDistance();
@@ -104,9 +200,15 @@ export default class CrystalLatticesSim extends SimulationEngine {
   private getBondDistance(): number {
     switch (this.latticeType) {
       case 'SC': return 1.0;
-      case 'BCC': return Math.sqrt(3) / 2; // ~0.866
-      case 'FCC': return Math.sqrt(2) / 2; // ~0.707
-      case 'Diamond': return Math.sqrt(3) / 4; // ~0.433
+      case 'BCC': return Math.sqrt(3) / 2;
+      case 'FCC': return Math.sqrt(2) / 2;
+      case 'Diamond': return Math.sqrt(3) / 4;
+      case 'HCP': return 0.75;
+      case 'NaCl': return Math.sqrt(2) / 2;
+      case 'CsCl': return Math.sqrt(3) / 2;
+      case 'Fluorite': return Math.sqrt(3) / 4 + 0.01; // Ca-F bond ≈ 0.433
+      case 'Perovskite': return 0.51; // B-O bond = 0.5 (body center to face center)
+      case 'Graphite': return 1 / Math.sqrt(3) + 0.01; // C-C bond ≈ 0.577 (in-plane only)
     }
   }
 
@@ -181,20 +283,26 @@ export default class CrystalLatticesSim extends SimulationEngine {
 
     for (const i of indices) {
       const p = projected[i];
+      const atom = this.atoms[i];
       const t = (p.depth - minDepth) / depthRange; // 0 = far, 1 = near
+      const sp = SPECIES_COLORS[atom.species] || SPECIES_COLORS[0];
 
-      const r = this.atomRadius * (0.6 + 0.4 * t);
-      const brightness = Math.floor(80 + 175 * t);
-      const baseColor = `rgb(${Math.floor(brightness * 0.4)}, ${Math.floor(brightness * 0.6)}, ${brightness})`;
+      const r = this.atomRadius * sp.sizeScale * (0.6 + 0.4 * t);
+      const brightness = 0.4 + 0.6 * t;
+      const lAdj = sp.l * brightness;
 
-      // Gradient sphere shading
+      // HSL-based coloring per species
+      const baseColor = `hsl(${sp.h}, ${sp.s}%, ${lAdj}%)`;
+      const highlight = `hsl(${sp.h}, ${Math.max(0, sp.s - 20)}%, ${Math.min(95, lAdj + 25)}%)`;
+      const shadow = `hsl(${sp.h}, ${sp.s}%, ${lAdj * 0.4}%)`;
+
       const grad = ctx.createRadialGradient(
         p.sx - r * 0.3, p.sy - r * 0.3, r * 0.1,
         p.sx, p.sy, r
       );
-      grad.addColorStop(0, `rgba(${Math.min(255, brightness + 80)}, ${Math.min(255, brightness + 60)}, 255, 1)`);
+      grad.addColorStop(0, highlight);
       grad.addColorStop(0.7, baseColor);
-      grad.addColorStop(1, `rgba(${Math.floor(brightness * 0.2)}, ${Math.floor(brightness * 0.3)}, ${Math.floor(brightness * 0.5)}, 0.9)`);
+      grad.addColorStop(1, shadow);
 
       ctx.beginPath();
       ctx.arc(p.sx, p.sy, r, 0, Math.PI * 2);
@@ -208,7 +316,7 @@ export default class CrystalLatticesSim extends SimulationEngine {
     const infoY = 20;
     ctx.fillStyle = 'rgba(15,23,42,0.85)';
     ctx.fillRect(infoX - 230, infoY - 5, 235, 80);
-    drawText(ctx, `Lattice: ${this.latticeType}`, infoX, infoY + 10, '#e2e8f0', '12px monospace', 'right');
+    drawText(ctx, `${info.name}`, infoX, infoY + 10, '#e2e8f0', '12px monospace', 'right');
     drawText(ctx, `Coordination Number: ${info.coordination}`, infoX, infoY + 28, '#94a3b8', '11px monospace', 'right');
     drawText(ctx, `Atoms / Unit Cell: ${info.atomsPerCell}`, infoX, infoY + 46, '#94a3b8', '11px monospace', 'right');
     drawText(ctx, `Packing Fraction: ${info.packing.toFixed(4)}`, infoX, infoY + 64, '#94a3b8', '11px monospace', 'right');
@@ -254,7 +362,13 @@ export default class CrystalLatticesSim extends SimulationEngine {
           { value: 'SC', label: 'Simple Cubic (SC)' },
           { value: 'BCC', label: 'Body-Centered Cubic (BCC)' },
           { value: 'FCC', label: 'Face-Centered Cubic (FCC)' },
-          { value: 'Diamond', label: 'Diamond' },
+          { value: 'HCP', label: 'Hexagonal Close-Packed (HCP)' },
+          { value: 'Diamond', label: 'Diamond Cubic' },
+          { value: 'NaCl', label: 'Rock Salt (NaCl)' },
+          { value: 'CsCl', label: 'Cesium Chloride (CsCl)' },
+          { value: 'Fluorite', label: 'Fluorite (CaF₂)' },
+          { value: 'Perovskite', label: 'Perovskite (ABO₃)' },
+          { value: 'Graphite', label: 'Graphite (Layered)' },
         ],
         defaultValue: 'SC',
       },

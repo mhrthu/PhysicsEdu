@@ -126,8 +126,12 @@ export default class ElectricFieldLinesSim extends SimulationEngine {
           if (terminated) break;
         }
 
-        // Gradient color based on field strength at start
-        ctx.strokeStyle = charge.q > 0 ? 'rgba(248,113,113,0.5)' : 'rgba(96,165,250,0.5)';
+        // Color by local potential: positive region = warm, negative = cool
+        const midPot = this.potential(px, py);
+        const potNorm = Math.tanh(midPot / 2e4); // -1 to 1
+        const hue = potNorm > 0 ? 20 - potNorm * 20 : 220 + potNorm * 20; // warm→cool
+        const sat = 70 + Math.abs(potNorm) * 20;
+        ctx.strokeStyle = `hsla(${hue}, ${sat}%, 60%, 0.55)`;
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
@@ -159,9 +163,16 @@ export default class ElectricFieldLinesSim extends SimulationEngine {
     const { ctx, width, height } = this;
     if (this.charges.length === 0) return;
 
-    // Use marching squares approximation for a few potential levels
-    const step = 8;
-    const levels = [-5e4, -2e4, -1e4, -5e3, -1e3, 0, 1e3, 5e3, 1e4, 2e4, 5e4];
+    // Marching squares for many equipotential levels
+    const step = 6;
+    // Logarithmically spaced levels for better coverage near charges
+    const levels: number[] = [];
+    for (const sign of [-1, 1]) {
+      for (const v of [200, 500, 1e3, 2e3, 5e3, 1e4, 2e4, 5e4, 1e5, 2e5, 5e5]) {
+        levels.push(sign * v);
+      }
+    }
+    levels.push(0);
     const cols = Math.ceil(width / step);
     const rows = Math.ceil(height / step);
 

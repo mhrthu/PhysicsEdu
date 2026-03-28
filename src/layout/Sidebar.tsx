@@ -136,11 +136,11 @@ export function Sidebar({ currentSimId, onSelect, isOpen, onClose }: Props) {
                   style={{ background: open ? 'rgba(255,255,255,0.04)' : 'transparent' }}
                 >
                   {/* Domain icon */}
-                  <span className="text-base leading-none w-5 text-center">{DOMAIN_ICONS[domain]}</span>
+                  <span className="text-2xl leading-none w-7 text-center">{DOMAIN_ICONS[domain]}</span>
 
-                  {/* Domain name — title case */}
+                  {/* Domain name */}
                   <span
-                    className="text-[13px] font-semibold flex-1"
+                    className="text-[15px] font-semibold flex-1"
                     style={{ color: open ? color : 'rgba(255,255,255,0.5)' }}
                   >
                     {domain}
@@ -180,7 +180,7 @@ export function Sidebar({ currentSimId, onSelect, isOpen, onClose }: Props) {
                           />
                           {/* Sim title */}
                           <span
-                            className="text-[13px] truncate flex-1"
+                            className="text-sm truncate flex-1"
                             style={{
                               color: isActive ? '#c7d2fe' : 'rgba(255,255,255,0.55)',
                               fontWeight: isActive ? 500 : 400,

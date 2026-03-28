@@ -59,7 +59,7 @@ export const DOMAIN_ICONS: Record<PhysicsDomain, string> = {
   [PhysicsDomain.Thermodynamics]: '🌡',
   [PhysicsDomain.Electromagnetism]: '⚡',
   [PhysicsDomain.Quantum]: '⚛',
-  [PhysicsDomain.Astrophysics]: '🌌',
+  [PhysicsDomain.Astrophysics]: '🪐',
   [PhysicsDomain.Optics]: '🔬',
   [PhysicsDomain.FluidAero]: '🌊',
   [PhysicsDomain.Relativity]: '🚀',

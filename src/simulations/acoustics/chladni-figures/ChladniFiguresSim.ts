@@ -185,8 +185,8 @@ export default class ChladniFiguresSim extends SimulationEngine {
 
   getControlDescriptors(): ControlDescriptor[] {
     return [
-      { type: 'slider', key: 'modeM', label: 'Mode m', min: 1, max: 8, step: 1, defaultValue: 2 },
-      { type: 'slider', key: 'modeN', label: 'Mode n', min: 1, max: 8, step: 1, defaultValue: 3 },
+      { type: 'slider', key: 'modeM', label: 'Mode m', min: 0.5, max: 8, step: 0.1, defaultValue: 2 },
+      { type: 'slider', key: 'modeN', label: 'Mode n', min: 0.5, max: 8, step: 0.1, defaultValue: 3 },
       { type: 'toggle', key: 'showParticles', label: 'Show Particles', defaultValue: true },
       { type: 'toggle', key: 'showDisplacement', label: 'Show Displacement Color', defaultValue: true },
     ];

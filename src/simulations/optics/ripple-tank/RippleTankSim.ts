@@ -158,7 +158,13 @@ export default class RippleTankSim extends SimulationEngine {
       }
     }
 
-    ctx.putImageData(this.imageData, 0, 0);
+    // putImageData ignores canvas transform (DPR scale), so use offscreen + drawImage
+    if (!this.offscreen || this.offscreen.width !== width || this.offscreen.height !== height) {
+      this.offscreen = new OffscreenCanvas(width, height);
+      this.offCtx = this.offscreen.getContext('2d') as OffscreenCanvasRenderingContext2D;
+    }
+    this.offCtx!.putImageData(this.imageData, 0, 0);
+    ctx.drawImage(this.offscreen!, 0, 0, width, height);
 
     // Nodal lines overlay (only meaningful for >= 2 sources)
     if (this.showNodalLines && this.sources.length >= 2) {
@@ -232,7 +238,7 @@ export default class RippleTankSim extends SimulationEngine {
       }
 
       // Glow
-      const glowR = 18 + pulse * 6;
+      const glowR = 10 + pulse * 4;
       const glow = ctx.createRadialGradient(src.x, src.y, 0, src.x, src.y, glowR);
       glow.addColorStop(0, `rgba(34,211,238,${0.6 + pulse * 0.3})`);
       glow.addColorStop(1, 'rgba(34,211,238,0)');

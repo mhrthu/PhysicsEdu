@@ -130,77 +130,158 @@ export default class AirfoilSim extends SimulationEngine {
     };
   }
 
-  // Simplified velocity field: freestream + doublet approximation for airfoil
+  // Potential flow: uniform + doublet + vortex (cylinder with circulation)
+  // Reference: Vr = U cos(θ)(1 - R²/r²), Vθ = -U sin(θ)(1 + R²/r²) - Γ/(2πr)
+  // https://eng.libretexts.org/Bookshelves/Civil_Engineering/Fluid_Mechanics_(Bar-Meir)/10.3.1.1
   private velocityAt(wx: number, wy: number): { vx: number; vy: number } {
-    const V = this.airspeed;
+    const U = this.airspeed;
     const alpha = this.aoa * Math.PI / 180;
-    // Freestream
-    let vx = V * Math.cos(alpha);
-    let vy = -V * Math.sin(alpha);
 
-    // Airfoil effect: simplified doublet at chord center
-    // Shift to airfoil frame (rotated)
-    const px = wx - this.foilCx;
-    const py = -(wy - this.foilCy);
-    const cosA = Math.cos(-alpha), sinA = Math.sin(-alpha);
-    const fx = (px * cosA - py * sinA) / this.chordLen;
-    const fy = (px * sinA + py * cosA) / this.chordLen;
+    // Position relative to airfoil center, in physical coords (y UP)
+    const dx = wx - this.foilCx;
+    const dy = -(wy - this.foilCy); // screen y-down → physics y-up
 
-    // Distance from chord, scaled
-    const r2 = fx * fx + fy * fy;
-    if (r2 > 0.01) {
-      // Doublet strength scales with thickness squared (cross-section area effect)
-      const tRatio = this.thickness / 100;
-      const mu = tRatio * tRatio * 4.0 + tRatio * 0.8;
-      // Camber/lift: add circulation (Γ) via thin airfoil theory
-      const CL2 = this.CL;
-      const gamma = 0.5 * CL2 * V;
+    // Rotate into airfoil frame (aligned with chord)
+    const cosA = Math.cos(alpha), sinA = Math.sin(alpha);
+    const ax = dx * cosA + dy * sinA;   // along chord
+    const ay = -dx * sinA + dy * cosA;  // perpendicular (+ = above)
 
-      // Doublet perturbation — models the airfoil displacing flow
-      const r4 = r2 * r2;
-      const pertVx = mu * (fx * fx - fy * fy) / r4;
-      const pertVy = mu * (2 * fx * fy) / r4;
+    // Polar coords in airfoil frame (normalized by chord)
+    let r = Math.sqrt(ax * ax + ay * ay) / this.chordLen;
+    const theta = Math.atan2(ay, ax);
 
-      // Vortex (circulation) perturbation — creates lift asymmetry
-      const circVx = -gamma * fy / r2;
-      const circVy = gamma * fx / r2;
+    // Effective cylinder radius must match the rendered airfoil size
+    // NACA max thickness at 30% chord ≈ thickness/100 * 0.5 (half-height)
+    // Add margin so streamlines stay outside the drawn shape
+    const tRatio = this.thickness / 100;
+    const R = tRatio * 0.55 + 0.04; // half-thickness + margin
 
-      // Rotate perturbations back to screen frame
-      const totalPertVx = pertVx + circVx;
-      const totalPertVy = pertVy + circVy;
-      vx += (totalPertVx * cosA - totalPertVy * sinA);
-      vy += -(totalPertVx * sinA + totalPertVy * cosA);
+    // If inside the body, clamp to surface — prevents streamlines entering
+    if (r < R * 1.01) r = R * 1.01;
+
+    // Circulation: positive Γ = counterclockwise = faster on top = lift
+    const Gamma = this.CL * U * 0.12;
+
+    const R2 = R * R;
+    const r2 = r * r;
+
+    // Standard potential flow (textbook formulas):
+    // Vr = U cos(θ) (1 - R²/r²)
+    const Vr = U * Math.cos(theta) * (1 - R2 / r2);
+    // Vθ = -U sin(θ) (1 + R²/r²) - Γ/(2πr)
+    const Vt = -U * Math.sin(theta) * (1 + R2 / r2) - Gamma / (2 * Math.PI * r);
+
+    // Polar → Cartesian in airfoil frame
+    const vx_af = Vr * Math.cos(theta) - Vt * Math.sin(theta);
+    const vy_af = Vr * Math.sin(theta) + Vt * Math.cos(theta);
+
+    // Rotate back to physical frame
+    const vx_phys = vx_af * cosA - vy_af * sinA;
+    const vy_phys = vx_af * sinA + vy_af * cosA;
+
+    // Physical → screen coords (flip y back)
+    return { vx: vx_phys, vy: -vy_phys };
+  }
+
+  // Get the airfoil upper/lower surface y in screen coords at a given screen x
+  private getAirfoilBoundsAtX(screenX: number): { upperY: number; lowerY: number; inside: boolean } | null {
+    const upperScr = this.upperSurface.map(p => this.toScreen(p.x, p.y));
+    const lowerScr = this.lowerSurface.map(p => this.toScreen(p.x, p.y));
+
+    // Find upper surface y at this x (interpolate)
+    let upperY = -1, lowerY = -1;
+    for (let i = 0; i < upperScr.length - 1; i++) {
+      const a = upperScr[i], b = upperScr[i + 1];
+      if ((a.x <= screenX && b.x >= screenX) || (b.x <= screenX && a.x >= screenX)) {
+        const t = (b.x - a.x) !== 0 ? (screenX - a.x) / (b.x - a.x) : 0;
+        upperY = a.y + t * (b.y - a.y);
+        break;
+      }
     }
-
-    return { vx, vy };
+    for (let i = 0; i < lowerScr.length - 1; i++) {
+      const a = lowerScr[i], b = lowerScr[i + 1];
+      if ((a.x <= screenX && b.x >= screenX) || (b.x <= screenX && a.x >= screenX)) {
+        const t = (b.x - a.x) !== 0 ? (screenX - a.x) / (b.x - a.x) : 0;
+        lowerY = a.y + t * (b.y - a.y);
+        break;
+      }
+    }
+    if (upperY < 0 || lowerY < 0) return null;
+    return { upperY, lowerY, inside: true };
   }
 
   private computeStreamlines(): void {
     this.streamlines = [];
-    const alpha = this.aoa * Math.PI / 180;
 
-    // Place streamlines entering from left at various heights
-    const startX = -this.width * 0.45;
-    const spread = this.height * 0.45;
+    // Get airfoil screen bounds
+    const upperScr = this.upperSurface.map(p => this.toScreen(p.x, p.y));
+    const lowerScr = this.lowerSurface.map(p => this.toScreen(p.x, p.y));
+    const leX = Math.min(...upperScr.map(p => p.x), ...lowerScr.map(p => p.x));
+    const teX = Math.max(...upperScr.map(p => p.x), ...lowerScr.map(p => p.x));
+
+    // Stagnation point: moves only slightly below chord center at positive AoA
+    // Small shift — most air still splits roughly evenly
+    const stagnationY = this.foilCy + this.chordLen * 0.002 * this.aoa;
+
+    const spread = this.height * 0.48;
+    const startX = this.foilCx - this.width * 0.42;
+    const endX = this.foilCx + this.width * 0.48;
+    const dx = 3;
+
+    // Upper: slightly compressed (faster flow = lower pressure = lift)
+    // Lower: MORE compressed (air squeezed under the wing by AoA deflection)
+    const upperCompression = 0.9;
+    const lowerCompression = 0.7; // tighter below — wing pushes air down
+
+    // Transition zone: how far before/after the airfoil the streamlines start bending
+    const chordWidth = teX - leX;
+    const transitionLen = chordWidth * 1.2; // long gentle approach
 
     for (let k = 0; k < this.NUM_STREAMLINES; k++) {
       const frac = (k + 0.5) / this.NUM_STREAMLINES;
-      const startY = this.foilCy - spread / 2 + frac * spread;
+      const y0 = this.foilCy - spread / 2 + frac * spread;
+      const isAbove = y0 < stagnationY;
+      const distFromChord = Math.abs(y0 - stagnationY);
+      const rank = distFromChord / (spread / 2); // 0 = closest to wing, 1 = farthest
+      const influence = Math.max(0, 1 - rank * rank); // far streamlines barely deflect
 
       const line: Array<{ x: number; y: number }> = [];
-      let x = this.foilCx + startX;
-      let y = startY;
-      const dt = 2.5;
-      const maxSteps = 400;
 
-      for (let step = 0; step < maxSteps; step++) {
+      for (let x = startX; x <= endX; x += dx) {
+        // Smooth blend: ramps up approaching airfoil, holds over it, ramps down after
+        let blend = 0;
+        if (x < leX - transitionLen) {
+          blend = 0;
+        } else if (x < leX) {
+          const t = (x - (leX - transitionLen)) / transitionLen;
+          blend = t * t * t * (10 - 15 * t + 6 * t * t); // quintic smoothstep
+        } else if (x <= teX) {
+          blend = 1;
+        } else if (x < teX + transitionLen) {
+          const t = 1 - (x - teX) / transitionLen;
+          blend = t * t * t * (10 - 15 * t + 6 * t * t);
+        } else {
+          blend = 0;
+        }
+
+        let y = y0;
+        if (blend > 0.001) {
+          const queryX = Math.max(leX + 1, Math.min(teX - 1, x));
+          const bounds = this.getAirfoilBoundsAtX(queryX);
+          if (bounds) {
+            let targetY: number;
+            if (isAbove) {
+              const offset = (rank * spread * 0.4 * upperCompression) + 8;
+              targetY = bounds.upperY - offset;
+            } else {
+              const offset = (rank * spread * 0.4 * lowerCompression) + 8;
+              targetY = bounds.lowerY + offset;
+            }
+            y = y0 + (targetY - y0) * blend * influence;
+          }
+        }
+
         line.push({ x, y });
-        const { vx, vy } = this.velocityAt(x, y);
-        const speed = Math.sqrt(vx * vx + vy * vy);
-        if (speed < 0.001) break;
-        x += (vx / speed) * dt;
-        y += (vy / speed) * dt;
-        if (x > this.foilCx + this.width * 0.5 || Math.abs(y - this.foilCy) > this.height * 0.55) break;
       }
 
       this.streamlines.push(line);
@@ -221,15 +302,21 @@ export default class AirfoilSim extends SimulationEngine {
   }
 
   private computeAero(): void {
-    // Thin airfoil theory: CL = 2π(α + α_0)
-    // Zero-lift angle α₀ ≈ -2*camber for symmetric-ish profiles
+    // Thin airfoil theory: CL = 2π(α - α₀)
+    // Zero-lift angle depends on camber
     const alpha = this.aoa * Math.PI / 180;
     const alpha0 = -2 * (this.camber / 100) * Math.PI / 10;
-    this.CL = 2 * Math.PI * (alpha - alpha0);
-    // Drag: induced + profile (simplified)
-    this.CD = 0.01 + this.CL * this.CL / (Math.PI * 6);
+    // Thickness affects max CL via improved leading-edge suction
+    const thicknessBoost = 1 + (this.thickness / 100) * 0.5;
+    this.CL = 2 * Math.PI * (alpha - alpha0) * thicknessBoost;
+
+    // Drag: profile drag scales with thickness (form drag) + induced drag
+    const tRatio = this.thickness / 100;
+    const profileCD = 0.006 + 0.12 * tRatio * tRatio; // thicker = more profile drag
+    const inducedCD = this.CL * this.CL / (Math.PI * 6); // AR ≈ 6
+    this.CD = profileCD + inducedCD;
+
     const q = 0.5 * this.RHO * this.airspeed * this.airspeed;
-    const spanChord = this.chordLen / this.width; // normalized
     this.lift = this.CL * q;
     this.drag = this.CD * q;
   }

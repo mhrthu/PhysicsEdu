@@ -11,7 +11,7 @@ interface Wavefront {
 
 export default class DopplerEffectSim extends SimulationEngine {
   private sourceSpeed = 50;
-  private frequency = 440;
+  private frequency = 100;
   private soundSpeed = 343;
 
   private sourceX = 0;
@@ -260,7 +260,7 @@ export default class DopplerEffectSim extends SimulationEngine {
   getControlDescriptors(): ControlDescriptor[] {
     return [
       { type: 'slider', key: 'sourceSpeed', label: 'Source Speed', min: 0, max: 300, step: 5, defaultValue: 50, unit: 'm/s' },
-      { type: 'slider', key: 'frequency', label: 'Frequency', min: 100, max: 1000, step: 10, defaultValue: 440, unit: 'Hz' },
+      { type: 'slider', key: 'frequency', label: 'Frequency', min: 10, max: 1000, step: 10, defaultValue: 100, unit: 'Hz' },
       { type: 'slider', key: 'soundSpeed', label: 'Sound Speed', min: 300, max: 400, step: 1, defaultValue: 343, unit: 'm/s' },
     ];
   }
