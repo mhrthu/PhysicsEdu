@@ -338,7 +338,7 @@ export default class AirfoilSim extends SimulationEngine {
         const beta = (i / numArrows) * Math.PI;
         const x = (1 - Math.cos(beta)) / 2;
 
-        for (const [surface, sign] of [[this.upperSurface, 1], [this.lowerSurface, -1]] as [[Array<{x:number;y:number}>, number]]) {
+        for (const [surface, sign] of ([[this.upperSurface, 1], [this.lowerSurface, -1]] as [Array<{x:number;y:number}>, number][])) {
           // Interpolate surface point
           const sLen = surface.length;
           const si = Math.min(sLen - 2, Math.floor(x * (sLen - 1)));

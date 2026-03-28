@@ -13,7 +13,7 @@ interface Projectile {
 
 export default class ProjectileMotionSim extends SimulationEngine {
   private angle = 45;
-  private speed = 25;
+  private launchSpeed = 25;
   private gravity = 9.81;
   private showVectors = true;
   private showTrace = true;
@@ -36,8 +36,8 @@ export default class ProjectileMotionSim extends SimulationEngine {
     this.projectiles = [{
       x: 0,
       y: 0,
-      vx: this.speed * Math.cos(rad),
-      vy: -this.speed * Math.sin(rad),
+      vx: this.launchSpeed * Math.cos(rad),
+      vy: -this.launchSpeed * Math.sin(rad),
       trail: [{ x: 0, y: 0 }],
       landed: false,
     }];
@@ -112,8 +112,8 @@ export default class ProjectileMotionSim extends SimulationEngine {
       // Theoretical trace
       if (this.showTrace) {
         const rad = (this.angle * Math.PI) / 180;
-        const v0x = this.speed * Math.cos(rad);
-        const v0y = -this.speed * Math.sin(rad);
+        const v0x = this.launchSpeed * Math.cos(rad);
+        const v0y = -this.launchSpeed * Math.sin(rad);
         ctx.beginPath();
         ctx.strokeStyle = 'rgba(147, 51, 234, 0.3)';
         ctx.lineWidth = 1;
@@ -160,9 +160,9 @@ export default class ProjectileMotionSim extends SimulationEngine {
 
     // Info overlay
     const rad = (this.angle * Math.PI) / 180;
-    const maxH = (this.speed * this.speed * Math.sin(rad) * Math.sin(rad)) / (2 * this.gravity);
-    const range = (this.speed * this.speed * Math.sin(2 * rad)) / this.gravity;
-    const flightTime = (2 * this.speed * Math.sin(rad)) / this.gravity;
+    const maxH = (this.launchSpeed * this.launchSpeed * Math.sin(rad) * Math.sin(rad)) / (2 * this.gravity);
+    const range = (this.launchSpeed * this.launchSpeed * Math.sin(2 * rad)) / this.gravity;
+    const flightTime = (2 * this.launchSpeed * Math.sin(rad)) / this.gravity;
 
     const infoX = width - 15;
     const infoY = 20;
@@ -214,7 +214,7 @@ export default class ProjectileMotionSim extends SimulationEngine {
   getControlValues(): Record<string, number | boolean | string> {
     return {
       angle: this.angle,
-      speed: this.speed,
+      speed: this.launchSpeed,
       gravity: this.gravity,
       showVectors: this.showVectors,
       showDecomposition: this.showDecomposition,
@@ -225,7 +225,7 @@ export default class ProjectileMotionSim extends SimulationEngine {
   setControlValue(key: string, value: number | boolean | string): void {
     switch (key) {
       case 'angle': this.angle = value as number; this.launch(); break;
-      case 'speed': this.speed = value as number; this.launch(); break;
+      case 'speed': this.launchSpeed = value as number; this.launch(); break;
       case 'gravity': this.gravity = value as number; this.launch(); break;
       case 'showVectors': this.showVectors = value as boolean; break;
       case 'showDecomposition': this.showDecomposition = value as boolean; break;
